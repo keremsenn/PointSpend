@@ -6,7 +6,7 @@ class AppStrings {
   static const offers = 'Kampanyalar';
   static const recentTransactions = 'Son İşlemler';
   static const home = 'Ana Sayfa';
-  static const activity = 'İşlemler';
-  static const rewards = 'Kampanyalar';
+  static const activity = 'Aktiviteler';
+  static const rewards = 'Ödüller';
   static const profile = 'Profil';
 }
