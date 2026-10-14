@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "752189000459",
+    "project_id": "pointspend",
+    "storage_bucket": "pointspend.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:752189000459:android:30b5639c97e3becbea700e",
+        "android_client_info": {
+          "package_name": "com.example.pointspend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAD0QOEb8j66YIxxPOow38rJotbeShF-o4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
