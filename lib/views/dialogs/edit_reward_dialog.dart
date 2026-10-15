@@ -1,5 +1,5 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/reward.dart';
 import '../../services/reward_service.dart';
@@ -281,18 +281,34 @@ class _EditRewardDialogState extends State<EditRewardDialog> {
 
               TextFormField(
                 controller: _titleController,
+                maxLength: 50,
+                inputFormatters: [LengthLimitingTextInputFormatter(50)],
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => isFocused
+                    ? Text('$currentLength/$maxLength', style: TextStyle(fontSize: 11, color: textColor.withValues(alpha: 0.5)))
+                    : null,
                 decoration: InputDecoration(
                   labelText: 'Ödül Adı (Örn: Sinema Bileti)',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   prefixIcon: const Icon(Icons.card_giftcard_rounded),
                 ),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Lütfen bir ad girin' : null,
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) return 'Lütfen bir ad girin';
+                  if (val.trim().length < 2) return 'Ödül adı en az 2 karakter olmalıdır';
+                  if (val.trim().length > 50) return 'Ödül adı en fazla 50 karakter olabilir';
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: _pointsController,
+                maxLength: 7,
                 keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(7),
+                ],
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                 decoration: InputDecoration(
                   labelText: 'Gereken Puan',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -301,7 +317,10 @@ class _EditRewardDialogState extends State<EditRewardDialog> {
                 ),
                 validator: (val) {
                   if (val == null || val.trim().isEmpty) return 'Puan giriniz';
-                  if (int.tryParse(val.trim()) == null) return 'Geçerli sayı giriniz';
+                  final p = int.tryParse(val.trim());
+                  if (p == null) return 'Geçerli sayı giriniz';
+                  if (p <= 0) return 'Puan en az 1 olmalıdır';
+                  if (p > 1000000) return 'Gereken puan en fazla 1.000.000 olabilir';
                   return null;
                 },
               ),
@@ -309,25 +328,48 @@ class _EditRewardDialogState extends State<EditRewardDialog> {
 
               TextFormField(
                 controller: _priceController,
+                maxLength: 10,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                  LengthLimitingTextInputFormatter(10),
+                ],
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                 decoration: InputDecoration(
                   labelText: 'Fiyat / Maliyet (Opsiyonel)',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   prefixIcon: const Icon(Icons.attach_money_rounded, color: Color(0xFF16A34A)),
                   suffixText: '₺',
                 ),
+                validator: (val) {
+                  if (val != null && val.trim().isNotEmpty) {
+                    final price = double.tryParse(val.trim().replaceAll(',', '.'));
+                    if (price == null || price < 0) return 'Geçerli fiyat giriniz';
+                    if (price > 1000000) return 'Fiyat en fazla 1.000.000 TL olabilir';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: _urlController,
+                maxLength: 250,
                 keyboardType: TextInputType.url,
+                inputFormatters: [LengthLimitingTextInputFormatter(250)],
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                 decoration: InputDecoration(
                   labelText: 'Ürün / Satın Alma Linki (Opsiyonel)',
                   hintText: 'https://...',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                   prefixIcon: const Icon(Icons.link_rounded),
                 ),
+                validator: (val) {
+                  if (val != null && val.trim().isNotEmpty) {
+                    if (val.trim().length > 250) return 'URL en fazla 250 karakter olabilir';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 24),
 

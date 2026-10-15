@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/user_profile.dart';
 import '../../services/auth_service.dart';
 
@@ -146,6 +147,11 @@ class _EditNameBottomSheetState extends State<_EditNameBottomSheet> {
               const SizedBox(height: 6),
               TextFormField(
                 controller: _nameController,
+                maxLength: 40,
+                inputFormatters: [LengthLimitingTextInputFormatter(40)],
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => isFocused
+                    ? Text('$currentLength/$maxLength', style: TextStyle(fontSize: 11, color: textColor.withValues(alpha: 0.5)))
+                    : null,
                 autofocus: true,
                 style: TextStyle(color: textColor),
                 decoration: InputDecoration(
@@ -166,6 +172,9 @@ class _EditNameBottomSheetState extends State<_EditNameBottomSheet> {
                   }
                   if (v.trim().length < 2) {
                     return 'Ad soyad en az 2 karakter olmalıdır';
+                  }
+                  if (v.trim().length > 40) {
+                    return 'Ad soyad en fazla 40 karakter olabilir';
                   }
                   return null;
                 },
@@ -325,6 +334,9 @@ class _EditEmailBottomSheetState extends State<_EditEmailBottomSheet> {
               const SizedBox(height: 6),
               TextFormField(
                 controller: _emailController,
+                maxLength: 60,
+                inputFormatters: [LengthLimitingTextInputFormatter(60)],
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                 keyboardType: TextInputType.emailAddress,
                 autofocus: true,
                 style: TextStyle(color: textColor),
@@ -345,6 +357,9 @@ class _EditEmailBottomSheetState extends State<_EditEmailBottomSheet> {
                     return 'Lütfen e-posta adresi giriniz';
                   }
                   final trimmed = v.trim();
+                  if (trimmed.length > 60) {
+                    return 'E-posta en fazla 60 karakter olabilir';
+                  }
                   final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                   if (!emailRegex.hasMatch(trimmed)) {
                     return 'Geçerli bir e-posta adresi giriniz (örnek: ad@domain.com)';
@@ -508,6 +523,9 @@ class _EditPasswordBottomSheetState extends State<_EditPasswordBottomSheet> {
               const SizedBox(height: 6),
               TextFormField(
                 controller: _passwordController,
+                maxLength: 32,
+                inputFormatters: [LengthLimitingTextInputFormatter(32)],
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                 obscureText: _obscurePassword,
                 autofocus: true,
                 style: TextStyle(color: textColor),
@@ -539,6 +557,9 @@ class _EditPasswordBottomSheetState extends State<_EditPasswordBottomSheet> {
                   if (v.trim().length < 6) {
                     return 'Şifreniz en az 6 karakter olmalıdır';
                   }
+                  if (v.trim().length > 32) {
+                    return 'Şifreniz en fazla 32 karakter olabilir';
+                  }
                   return null;
                 },
               ),
@@ -555,6 +576,9 @@ class _EditPasswordBottomSheetState extends State<_EditPasswordBottomSheet> {
               const SizedBox(height: 6),
               TextFormField(
                 controller: _confirmPasswordController,
+                maxLength: 32,
+                inputFormatters: [LengthLimitingTextInputFormatter(32)],
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                 obscureText: _obscureConfirmPassword,
                 style: TextStyle(color: textColor),
                 decoration: InputDecoration(
@@ -583,7 +607,7 @@ class _EditPasswordBottomSheetState extends State<_EditPasswordBottomSheet> {
                     return 'Lütfen şifrenizi tekrar giriniz';
                   }
                   if (v.trim() != _passwordController.text.trim()) {
-                    return 'Girdiğiniz şifreler birbiriyle eşleşmiyor';
+                    return 'Şifreler birbiriyle eşleşmiyor';
                   }
                   return null;
                 },

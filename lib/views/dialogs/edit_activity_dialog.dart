@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/activity.dart';
 import '../../services/activity_service.dart';
 
@@ -36,6 +37,7 @@ class _EditActivityDialogState extends State<EditActivityDialog> {
     _titleController = TextEditingController(text: widget.activity.title);
     _pointsController = TextEditingController(text: widget.activity.pointValue.toString());
     _frequency = widget.activity.frequency.isNotEmpty ? widget.activity.frequency : 'daily';
+    if (_frequency == 'optional') _frequency = 'once';
 
     int initH = 9;
     int initM = 0;
@@ -167,17 +169,33 @@ class _EditActivityDialogState extends State<EditActivityDialog> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _titleController,
+              maxLength: 50,
+              inputFormatters: [LengthLimitingTextInputFormatter(50)],
+              buildCounter: (context, {required currentLength, required isFocused, maxLength}) => isFocused
+                  ? Text('$currentLength/$maxLength', style: TextStyle(fontSize: 11, color: textColor.withValues(alpha: 0.5)))
+                  : null,
               decoration: InputDecoration(
                 labelText: 'Aktivite Adı',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                 prefixIcon: const Icon(Icons.fitness_center_rounded),
               ),
-              validator: (val) => val == null || val.trim().isEmpty ? 'Lütfen bir ad girin' : null,
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) return 'Lütfen bir ad girin';
+                if (val.trim().length < 2) return 'Aktivite adı en az 2 karakter olmalıdır';
+                if (val.trim().length > 50) return 'Aktivite adı en fazla 50 karakter olabilir';
+                return null;
+              },
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _pointsController,
+              maxLength: 6,
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+              ],
+              buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
               decoration: InputDecoration(
                 labelText: 'Kazanılacak Puan',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -186,13 +204,16 @@ class _EditActivityDialogState extends State<EditActivityDialog> {
               ),
               validator: (val) {
                 if (val == null || val.trim().isEmpty) return 'Puan giriniz';
-                if (int.tryParse(val.trim()) == null) return 'Geçerli sayı giriniz';
+                final p = int.tryParse(val.trim());
+                if (p == null) return 'Geçerli sayı giriniz';
+                if (p <= 0) return 'Puan en az 1 olmalıdır';
+                if (p > 100000) return 'Puan en fazla 100.000 olabilir';
                 return null;
               },
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: ['daily', 'weekly', 'optional'].contains(_frequency) ? _frequency : 'daily',
+              value: ['daily', 'weekly', 'once'].contains(_frequency) ? _frequency : 'daily',
               decoration: InputDecoration(
                 labelText: 'Sıklık',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -201,7 +222,7 @@ class _EditActivityDialogState extends State<EditActivityDialog> {
               items: const [
                 DropdownMenuItem(value: 'daily', child: Text('Her Gün')),
                 DropdownMenuItem(value: 'weekly', child: Text('Haftada Bir')),
-                DropdownMenuItem(value: 'optional', child: Text('İsteğe Bağlı')),
+                DropdownMenuItem(value: 'once', child: Text('Yalnızca Bir Kez')),
               ],
               onChanged: (val) {
                 if (val != null) setState(() => _frequency = val);
@@ -226,12 +247,20 @@ class _EditActivityDialogState extends State<EditActivityDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Günlük Hatırlatıcı Bildirimi',
+                            _frequency == 'weekly'
+                                ? 'Haftalık Hatırlatıcı Bildirimi'
+                                : _frequency == 'once'
+                                    ? 'Tek Seferlik Hatırlatıcı'
+                                    : 'Günlük Hatırlatıcı Bildirimi',
                             style: TextStyle(fontSize: 12, color: textColor.withValues(alpha: 0.6)),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Her gün ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')}',
+                            _frequency == 'weekly'
+                                ? 'Haftada bir ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')}'
+                                : _frequency == 'once'
+                                    ? 'Saat ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')}'
+                                    : 'Her gün ${_reminderTime.hour.toString().padLeft(2, '0')}:${_reminderTime.minute.toString().padLeft(2, '0')}',
                             style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textColor),
                           ),
                         ],
