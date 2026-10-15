@@ -134,17 +134,23 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // 2. Mükemmel Günler
+                    // 2. Bugün Tamamlanan
                     Expanded(
-                      child: _StatCard(
-                        cardBg: cardBg,
-                        textColor: textColor,
-                        icon: Icons.stars_rounded,
-                        iconColor: const Color(0xFFD97706),
-                        iconBg: const Color(0xFFFEF3C7),
-                        title: 'Mükemmel Günler',
-                        value: '${user?.perfectDaysCount ?? 0} Gün 🌟',
-                        subtitle: 'Tüm Görevler 3/3',
+                      child: StreamBuilder<int>(
+                        stream: activityService.streamTodayCompletionsCount(userId),
+                        builder: (context, snap) {
+                          final count = snap.data ?? 0;
+                          return _StatCard(
+                            cardBg: cardBg,
+                            textColor: textColor,
+                            icon: Icons.track_changes_rounded,
+                            iconColor: const Color(0xFF0EA5E9),
+                            iconBg: const Color(0xFF0EA5E9).withValues(alpha: 0.14),
+                            title: 'Bugün Tamamlanan',
+                            value: '$count Görev 🎯',
+                            subtitle: 'Bugünkü Başarı',
+                          );
+                        },
                       ),
                     ),
                   ],
