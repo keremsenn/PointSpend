@@ -46,3 +46,6 @@ app.*.map.json
 
 # Java memory dumps
 *.hprof
+
+# Kotlin
+.kotlin/
