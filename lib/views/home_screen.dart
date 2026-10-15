@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/utils/url_launcher_helper.dart';
 import '../models/activity.dart';
+import '../models/activity_completion.dart';
 import '../models/reward.dart';
 import '../models/user_profile.dart';
 import '../services/activity_service.dart';
@@ -18,12 +19,29 @@ import 'widgets/reward_image_view.dart';
 
 class HomeScreen extends StatelessWidget {
   final String userId;
+  final UserProfile? initialUser;
+  final List<Activity>? initialActivities;
+  final List<Reward>? initialRewards;
+  final Map<String, ActivityCompletion>? initialCompletions;
 
-  const HomeScreen({super.key, required this.userId});
+  const HomeScreen({
+    super.key,
+    required this.userId,
+    this.initialUser,
+    this.initialActivities,
+    this.initialRewards,
+    this.initialCompletions,
+  });
 
-  void _showActivityDetail(BuildContext context, Activity act, ActivityService activityService) {
+  void _showActivityDetail(
+    BuildContext context,
+    Activity act,
+    ActivityService activityService, {
+    ActivityStatus? status,
+  }) {
     final theme = Theme.of(context);
     final textColor = theme.colorScheme.onSurface;
+    final isDark = theme.brightness == Brightness.dark;
 
     showModalBottomSheet(
       context: context,
@@ -54,12 +72,14 @@ class HomeScreen extends StatelessWidget {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
+                    color: (status?.isCompleted ?? false)
+                        ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
+                        : const Color(0xFFDCFCE7),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(
-                    Icons.bolt_rounded,
-                    color: Color(0xFF16A34A),
+                  child: Icon(
+                    (status?.isCompleted ?? false) ? Icons.check_circle_rounded : Icons.bolt_rounded,
+                    color: const Color(0xFF16A34A),
                     size: 28,
                   ),
                 ),
@@ -78,9 +98,13 @@ class HomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '+${act.pointValue} Puan Kazandırır',
-                        style: const TextStyle(
-                          color: Color(0xFF16A34A),
+                        (status?.isCompleted ?? false)
+                            ? '+${act.pointValue} Puan (Kazanıldı)'
+                            : '+${act.pointValue} Puan Kazandırır',
+                        style: TextStyle(
+                          color: (status?.isCompleted ?? false)
+                              ? textColor.withValues(alpha: 0.6)
+                              : const Color(0xFF16A34A),
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
@@ -91,11 +115,45 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
+            if (status != null && status.isCompleted) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF14241B) : const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF86EFAC)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, size: 20, color: Color(0xFF16A34A)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Durum: Tamamlandı',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF166534)),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            status.statusText,
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF15803D)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
             if (act.reminderTime.isNotEmpty) ...[
               _detailRow(Icons.access_time_rounded, 'Hatırlatıcı Saati', act.reminderTime, textColor),
               const SizedBox(height: 10),
             ],
-            _detailRow(Icons.repeat_rounded, 'Sıklık', act.frequency == 'daily' ? 'Günlük' : act.frequency, textColor),
+            _detailRow(Icons.repeat_rounded, 'Sıklık', act.frequencyLabel, textColor),
             const SizedBox(height: 24),
             Row(
               children: [
@@ -355,12 +413,13 @@ class HomeScreen extends StatelessWidget {
     final purchaseService = PurchaseService();
 
     return StreamBuilder<UserProfile>(
+      initialData: initialUser,
       stream: userService.watchUser(userId),
       builder: (context, userSnapshot) {
-        if (userSnapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Color(0xFFF9FAFB),
-            body: Center(
+        if (!userSnapshot.hasData && userSnapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: const Center(
               child: CircularProgressIndicator(color: Color(0xFF16A34A)),
             ),
           );
@@ -630,17 +689,16 @@ class HomeScreen extends StatelessWidget {
                 ),
 
                 // 3. Activities Stream
-                StreamBuilder<Set<String>>(
-                  stream: activityService.streamTodayCompletedActivityIds(userId),
-                  builder: (context, completedSnapshot) {
-                    final completedTodayIds = completedSnapshot.data ?? {};
+                StreamBuilder<Map<String, ActivityCompletion>>(
+                  initialData: initialCompletions,
+                  stream: activityService.streamLatestCompletionsByUser(userId),
+                  builder: (context, completionsSnapshot) {
+                    final latestCompletions = completionsSnapshot.data ?? {};
                     return StreamBuilder<List<Activity>>(
+                      initialData: initialActivities,
                       stream: activityService.streamActivitiesByUser(userId),
                       builder: (context, activitySnapshot) {
                         final activities = activitySnapshot.data ?? [];
-                        final pendingActivities = activities
-                            .where((act) => !completedTodayIds.contains(act.id))
-                            .toList();
 
                         if (activities.isEmpty) {
                           return SliverToBoxAdapter(
@@ -666,51 +724,240 @@ class HomeScreen extends StatelessWidget {
                           );
                         }
 
-                        if (pendingActivities.isEmpty) {
+                        // Separate available and completed activities
+                        final availableEntries = <MapEntry<Activity, ActivityStatus>>[];
+                        final completedEntries = <MapEntry<Activity, ActivityStatus>>[];
+
+                        for (final act in activities) {
+                          final status = ActivityService.calculateStatus(act, latestCompletions[act.id]);
+                          if (status.isAvailable) {
+                            availableEntries.add(MapEntry(act, status));
+                          } else {
+                            // Yalnızca bir kez (once) seçilen aktiviteler tamamlanınca
+                            // ana ekrandan tamamen kaybolsun, silik de olsa gözükmesin.
+                            final freq = act.frequency.toLowerCase();
+                            if (freq != 'once' && freq != 'optional') {
+                              completedEntries.add(MapEntry(act, status));
+                            }
+                          }
+                        }
+
+                        final allEntries = [...availableEntries, ...completedEntries];
+
+                        if (allEntries.isEmpty) {
                           return SliverToBoxAdapter(
                             child: Container(
                               margin: const EdgeInsets.symmetric(horizontal: 20),
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF14241B) : const Color(0xFFF0FDF4),
+                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF9FAFB),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFFBBF7D0)),
+                                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
                               ),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.task_alt_rounded, color: Color(0xFF16A34A), size: 36),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    'Bugün için tüm aktivitelerini tamamladın! 🎉',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                      color: Color(0xFF166534),
-                                    ),
+                              child: Center(
+                                child: Text(
+                                  'Şu an gösterilecek aktif bir aktivite yok. "+" butonundan yeni aktivite ekleyebilirsin.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: textColor.withValues(alpha: 0.6),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Tüm aktivitelerini alt menüdeki "Aktivitelerim" sekmesinden inceleyebilirsin.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: textColor.withValues(alpha: 0.7),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           );
                         }
+
+                        final showAllDoneBanner = availableEntries.isEmpty && completedEntries.isNotEmpty;
 
                         return SliverPadding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           sliver: SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
-                                final act = pendingActivities[index];
+                                if (showAllDoneBanner) {
+                                  if (index == 0) {
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 12),
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF14241B) : const Color(0xFFF0FDF4),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.task_alt_rounded, color: Color(0xFF16A34A), size: 28),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                const Text(
+                                                  'Tüm görevlerini tamamladın! 🎉',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    color: Color(0xFF166534),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  'Aktivitelerinizin ne zaman yenileneceğini aşağıdan görebilirsiniz.',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: textColor.withValues(alpha: 0.7),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                }
+
+                                final itemIndex = showAllDoneBanner ? index - 1 : index;
+                                final entry = allEntries[itemIndex];
+                                final act = entry.key;
+                                final status = entry.value;
+                                final isDone = status.isCompleted;
+
+                                if (isDone) {
+                                  // Tamamlanmış (Silik / Kilitli) Aktivite Kartı
+                                  return GestureDetector(
+                                    onTap: () => _showActivityDetail(context, act, activityService, status: status),
+                                    child: Opacity(
+                                      opacity: 0.68,
+                                      child: Container(
+                                        margin: const EdgeInsets.only(bottom: 10),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: isDark
+                                                ? Colors.white.withValues(alpha: 0.08)
+                                                : Colors.grey.withValues(alpha: 0.25),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 44,
+                                              height: 44,
+                                              decoration: BoxDecoration(
+                                                color: isDark ? const Color(0xFF14241B) : const Color(0xFFDCFCE7),
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: const Icon(
+                                                Icons.check_circle_rounded,
+                                                color: Color(0xFF16A34A),
+                                                size: 24,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 14),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Flexible(
+                                                        child: Text(
+                                                          act.title,
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.ellipsis,
+                                                          style: TextStyle(
+                                                            fontWeight: FontWeight.w600,
+                                                            fontSize: 15,
+                                                            color: textColor.withValues(alpha: 0.8),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                        ),
+                                                        child: Text(
+                                                          status.frequencyLabel,
+                                                          style: TextStyle(
+                                                            fontSize: 10,
+                                                            fontWeight: FontWeight.bold,
+                                                            color: textColor.withValues(alpha: 0.7),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Row(
+                                                    children: [
+                                                      Icon(
+                                                        act.frequency == 'weekly'
+                                                            ? Icons.calendar_month_rounded
+                                                            : act.frequency == 'once'
+                                                                ? Icons.lock_clock_rounded
+                                                                : Icons.schedule_rounded,
+                                                        size: 13,
+                                                        color: const Color(0xFFD97706),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Expanded(
+                                                        child: Text(
+                                                          status.statusText,
+                                                          style: const TextStyle(
+                                                            color: Color(0xFFD97706),
+                                                            fontWeight: FontWeight.w600,
+                                                            fontSize: 11,
+                                                          ),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                              decoration: BoxDecoration(
+                                                color: isDark ? const Color(0xFF334155).withValues(alpha: 0.5) : const Color(0xFFE2E8F0),
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.lock_rounded, size: 13, color: textColor.withValues(alpha: 0.6)),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Tamamlandı',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: textColor.withValues(alpha: 0.7),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                // Aktif (Tamamlanmaya Hazır) Aktivite Kartı
                                 return GestureDetector(
-                                  onTap: () => _showActivityDetail(context, act, activityService),
+                                  onTap: () => _showActivityDetail(context, act, activityService, status: status),
                                   child: Container(
                                     margin: const EdgeInsets.only(bottom: 10),
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -718,7 +965,7 @@ class HomeScreen extends StatelessWidget {
                                       color: theme.cardColor,
                                       borderRadius: BorderRadius.circular(16),
                                       border: Border.all(
-                                        color: const Color(0xFF16A34A).withValues(alpha: 0.2),
+                                        color: const Color(0xFF16A34A).withValues(alpha: 0.25),
                                         width: 1,
                                       ),
                                       boxShadow: [
@@ -739,7 +986,7 @@ class HomeScreen extends StatelessWidget {
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: const Icon(
-                                            Icons.check_circle_outline_rounded,
+                                            Icons.radio_button_unchecked_rounded,
                                             color: Color(0xFF16A34A),
                                           ),
                                         ),
@@ -748,15 +995,39 @@ class HomeScreen extends StatelessWidget {
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                act.title,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 15,
-                                                  color: textColor,
-                                                ),
+                                              Row(
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                      act.title,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 15,
+                                                        color: textColor,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFFDCFCE7),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: Text(
+                                                      status.frequencyLabel,
+                                                      style: const TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Color(0xFF166534),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                              const SizedBox(height: 2),
+                                              const SizedBox(height: 3),
                                               Text(
                                                 '+${act.pointValue} Puan Kazandırır',
                                                 style: const TextStyle(
@@ -768,6 +1039,7 @@ class HomeScreen extends StatelessWidget {
                                             ],
                                           ),
                                         ),
+                                        const SizedBox(width: 8),
                                         ElevatedButton(
                                           onPressed: () async {
                                             try {
@@ -791,15 +1063,24 @@ class HomeScreen extends StatelessWidget {
                                                 return;
                                               }
 
-                                              await activityService.completeActivity(userId, act);
+                                              final success = await activityService.completeActivity(userId, act);
                                               if (context.mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text('Tebrikler! "+${act.pointValue} Puan" kazanıldı! 🔥 Günlük seri güncellendi.'),
-                                                    backgroundColor: const Color(0xFF16A34A),
-                                                    duration: const Duration(seconds: 2),
-                                                  ),
-                                                );
+                                                if (success) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text('Tebrikler! "+${act.pointValue} Puan" kazanıldı! 🔥'),
+                                                      backgroundColor: const Color(0xFF16A34A),
+                                                      duration: const Duration(seconds: 2),
+                                                    ),
+                                                  );
+                                                } else {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text('Bu aktivite henüz yenilenme süresinde!'),
+                                                      backgroundColor: Colors.orange,
+                                                    ),
+                                                  );
+                                                }
                                               }
                                             } catch (e) {
                                               if (context.mounted) {
@@ -825,7 +1106,7 @@ class HomeScreen extends StatelessWidget {
                                   ),
                                 );
                               },
-                              childCount: pendingActivities.length,
+                              childCount: allEntries.length + (showAllDoneBanner ? 1 : 0),
                             ),
                           ),
                         );
@@ -861,6 +1142,7 @@ class HomeScreen extends StatelessWidget {
 
                 // 5. Rewards Stream (Active / Unclaimed only)
                 StreamBuilder<List<Reward>>(
+                  initialData: initialRewards,
                   stream: rewardService.streamRewardsByUser(userId),
                   builder: (context, rewardSnapshot) {
                     final rewards = rewardSnapshot.data ?? [];
@@ -939,6 +1221,8 @@ class HomeScreen extends StatelessWidget {
                                                   Expanded(
                                                     child: Text(
                                                       rwd.title,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
                                                       style: TextStyle(
                                                         fontWeight: FontWeight.bold,
                                                         fontSize: 16,

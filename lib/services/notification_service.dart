@@ -254,6 +254,16 @@ class NotificationService {
       ),
     );
 
+    final freq = activity.frequency.toLowerCase();
+    DateTimeComponents? matchComponents;
+    if (freq == 'weekly') {
+      matchComponents = DateTimeComponents.dayOfWeekAndTime;
+    } else if (freq == 'once') {
+      matchComponents = null;
+    } else {
+      matchComponents = DateTimeComponents.time;
+    }
+
     try {
       await _localNotifications.zonedSchedule(
         id: notifId,
@@ -262,7 +272,7 @@ class NotificationService {
         scheduledDate: scheduled,
         notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.time,
+        matchDateTimeComponents: matchComponents,
       );
       if (kDebugMode) {
         print('Scheduled exact reminder for "${activity.title}" at $scheduled (ID: $notifId)');
@@ -279,7 +289,7 @@ class NotificationService {
           scheduledDate: scheduled,
           notificationDetails: details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          matchDateTimeComponents: DateTimeComponents.time,
+          matchDateTimeComponents: matchComponents,
         );
       } catch (err) {
         if (kDebugMode) print('Error scheduling reminder for ${activity.title}: $err');

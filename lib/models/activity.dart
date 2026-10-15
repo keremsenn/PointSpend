@@ -79,4 +79,33 @@ class Activity {
           : null,
     );
   }
+
+  String get frequencyLabel {
+    switch (frequency) {
+      case 'weekly':
+        return 'Haftada Bir';
+      case 'once':
+      case 'optional':
+        return 'Yalnızca Bir Kez';
+      case 'daily':
+      default:
+        return 'Her Gün';
+    }
+  }
+}
+
+class ActivityStatus {
+  const ActivityStatus({
+    required this.isCompleted,
+    required this.isAvailable,
+    required this.statusText,
+    required this.frequencyLabel,
+    this.nextAvailableDate,
+  });
+
+  final bool isCompleted;
+  final bool isAvailable;
+  final String statusText;
+  final String frequencyLabel;
+  final DateTime? nextAvailableDate;
 }
