@@ -116,6 +116,40 @@ class RewardService {
         .map((snap) => snap.docs.length);
   }
 
+  /// Stream total points spent on claimed rewards for a user
+  Stream<int> streamTotalSpentPoints(String userId) {
+    return _rewardClaimsCollection
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snap) {
+      int total = 0;
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final points = (data['spentPoints'] as num?)?.toInt() ?? 0;
+        total += points;
+      }
+      return total;
+    });
+  }
+
+  /// Get total points spent on claimed rewards for a user (one-shot for preload)
+  Future<int> getTotalSpentPoints(String userId) async {
+    try {
+      final snap = await _rewardClaimsCollection
+          .where('userId', isEqualTo: userId)
+          .get();
+      int total = 0;
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final points = (data['spentPoints'] as num?)?.toInt() ?? 0;
+        total += points;
+      }
+      return total;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /// Seed initial default rewards for a user as specified in doc
   Future<void> seedDefaultRewards(String userId) async {
     final defaults = [

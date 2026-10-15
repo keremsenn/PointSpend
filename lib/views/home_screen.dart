@@ -23,6 +23,7 @@ class HomeScreen extends StatelessWidget {
   final List<Activity>? initialActivities;
   final List<Reward>? initialRewards;
   final Map<String, ActivityCompletion>? initialCompletions;
+  final int? initialSpentPoints;
 
   const HomeScreen({
     super.key,
@@ -31,7 +32,16 @@ class HomeScreen extends StatelessWidget {
     this.initialActivities,
     this.initialRewards,
     this.initialCompletions,
+    this.initialSpentPoints,
   });
+
+  static String _formatPoints(int value) {
+    final s = value.toString();
+    return s.replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]}.',
+    );
+  }
 
   void _showActivityDetail(
     BuildContext context,
@@ -565,98 +575,219 @@ class HomeScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
                         // Points Balance Card
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(22),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFF16A34A), Color(0xFF15803D)],
-                            ),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF16A34A).withValues(alpha: 0.3),
-                                blurRadius: 16,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Mevcut Puan Bakiyeniz',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                        StreamBuilder<int>(
+                          initialData: initialSpentPoints ?? 0,
+                          stream: rewardService.streamTotalSpentPoints(userId),
+                          builder: (context, spentSnapshot) {
+                            final spentPoints = spentSnapshot.data ?? 0;
+                            final totalEarned = currentPoints + spentPoints;
+
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [Color(0xFF16A34A), Color(0xFF15803D)],
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.baseline,
-                                textBaseline: TextBaseline.alphabetic,
-                                children: [
-                                  Text(
-                                    '$currentPoints',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 42,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -1,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'Puan',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF16A34A).withValues(alpha: 0.3),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 8),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 18),
-                              Row(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => AddActivityDialog.show(context, userId),
-                                      icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
-                                      label: const Text('Aktivite Ekle'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white.withValues(alpha: 0.2),
-                                        foregroundColor: Colors.white,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'Mevcut Puan Bakiyeniz',
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.18),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 13),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Puan Cüzdanı',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      Text(
+                                        _formatPoints(currentPoints),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 38,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -1,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        'Puan',
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+
+                                  // Harcanan ve Toplam Kazanılan Rozeti
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(alpha: 0.18),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // 🛍️ Harcanan: 450 Puan
+                                        Expanded(
+                                          child: Row(
+                                            children: [
+                                              const Text('🛍️', style: TextStyle(fontSize: 13)),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: FittedBox(
+                                                  fit: BoxFit.scaleDown,
+                                                  alignment: Alignment.centerLeft,
+                                                  child: RichText(
+                                                    text: TextSpan(
+                                                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                                                      children: [
+                                                        TextSpan(
+                                                          text: 'Harcanan: ',
+                                                          style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+                                                        ),
+                                                        TextSpan(
+                                                          text: '${_formatPoints(spentPoints)} Puan',
+                                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          height: 18,
+                                          width: 1,
+                                          color: Colors.white.withValues(alpha: 0.25),
+                                          margin: const EdgeInsets.symmetric(horizontal: 10),
+                                        ),
+                                        // 🌟 Toplam Kazanılan: 1.700 Puan
+                                        Expanded(
+                                          child: Row(
+                                            children: [
+                                              const Text('🌟', style: TextStyle(fontSize: 13)),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: FittedBox(
+                                                  fit: BoxFit.scaleDown,
+                                                  alignment: Alignment.centerLeft,
+                                                  child: RichText(
+                                                    text: TextSpan(
+                                                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                                                      children: [
+                                                        TextSpan(
+                                                          text: 'Toplam Kazanılan: ',
+                                                          style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+                                                        ),
+                                                        TextSpan(
+                                                          text: '${_formatPoints(totalEarned)} Puan',
+                                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => AddRewardDialog.show(context, userId),
-                                      icon: const Icon(Icons.card_giftcard_rounded, size: 18),
-                                      label: const Text('Ödül Ekle'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: const Color(0xFF15803D),
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                  const SizedBox(height: 16),
+
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          onPressed: () => AddActivityDialog.show(context, userId),
+                                          icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                                          label: const Text('Aktivite Ekle'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white.withValues(alpha: 0.2),
+                                            foregroundColor: Colors.white,
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          onPressed: () => AddRewardDialog.show(context, userId),
+                                          icon: const Icon(Icons.card_giftcard_rounded, size: 18),
+                                          label: const Text('Ödül Ekle'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white,
+                                            foregroundColor: const Color(0xFF15803D),
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
                       ],
                     ),

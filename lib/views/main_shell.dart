@@ -38,6 +38,7 @@ class _MainShellState extends State<MainShell> {
   List<Activity>? _preloadedActivities;
   List<Reward>? _preloadedRewards;
   Map<String, ActivityCompletion>? _preloadedCompletions;
+  int? _preloadedSpentPoints;
 
   final AuthService _authService = AuthService();
   final UserService _userService = UserService();
@@ -90,6 +91,11 @@ class _MainShellState extends State<MainShell> {
                 const Duration(seconds: 4),
                 onTimeout: () => <String, ActivityCompletion>{},
               ),
+          // Toplam harcanan puan
+          _rewardService.getTotalSpentPoints(savedUserId).timeout(
+                const Duration(seconds: 4),
+                onTimeout: () => 0,
+              ),
         ]);
 
         _preloadedUser = results[0] as UserProfile?;
@@ -97,6 +103,7 @@ class _MainShellState extends State<MainShell> {
         _preloadedRewards = results[2] as List<Reward>?;
         _preloadedCompletions =
             results[3] as Map<String, ActivityCompletion>?;
+        _preloadedSpentPoints = results[4] as int?;
 
         final activities = _preloadedActivities ?? <Activity>[];
 
@@ -236,6 +243,7 @@ class _MainShellState extends State<MainShell> {
         _preloadedActivities = null;
         _preloadedRewards = null;
         _preloadedCompletions = null;
+        _preloadedSpentPoints = null;
         _selectedIndex = 0;
       });
     }
@@ -271,6 +279,7 @@ class _MainShellState extends State<MainShell> {
           initialActivities: _preloadedActivities,
           initialRewards: _preloadedRewards,
           initialCompletions: _preloadedCompletions,
+          initialSpentPoints: _preloadedSpentPoints,
         ),
         ActivityScreen(userId: _userId!),
         RewardsScreen(userId: _userId!),
