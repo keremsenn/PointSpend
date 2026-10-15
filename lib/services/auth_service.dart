@@ -14,9 +14,28 @@ class AuthService {
 
   static const String _keyUserId = 'user_id_session';
   static const String _keySessionDate = 'session_login_timestamp';
+  static const String _keyHasSeenOnboarding = 'has_seen_onboarding';
   static const int _sessionValidityDays = 30;
 
   User? get currentUser => _auth.currentUser;
+
+  /// Check whether the user has already seen the onboarding tutorial
+  Future<bool> hasSeenOnboarding() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_keyHasSeenOnboarding) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Mark onboarding tutorial as completed so it won't be shown again
+  Future<void> setHasSeenOnboarding() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyHasSeenOnboarding, true);
+    } catch (_) {}
+  }
 
   /// Check if a valid local session exists (within 30 days)
   Future<String?> getValidSessionUserId() async {
@@ -130,14 +149,20 @@ class AuthService {
           email: email.trim(),
           totalPoints: 1250,
           proStatus: false,
+          hasSeenOnboarding: true,
           tier: 'Free',
           profileStatus: 'active',
           createdAt: DateTime.now(),
         );
         await _userService.createUser(profile);
+      } else {
+        if (!profile.hasSeenOnboarding) {
+          await _userService.updateUser(profile.id, {'hasSeenOnboarding': true});
+        }
       }
 
       await saveSession(profile.id);
+      await setHasSeenOnboarding();
       return profile;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
@@ -177,6 +202,7 @@ class AuthService {
         email: email.trim(),
         totalPoints: 1250,
         proStatus: false,
+        hasSeenOnboarding: false,
         tier: 'Free',
         profileStatus: 'active',
         createdAt: DateTime.now(),
@@ -202,6 +228,7 @@ class AuthService {
                 email: email.trim(),
                 totalPoints: 1250,
                 proStatus: false,
+                hasSeenOnboarding: true,
                 tier: 'Free',
                 profileStatus: 'active',
                 createdAt: DateTime.now(),
@@ -209,6 +236,7 @@ class AuthService {
               await _userService.createUser(profile);
             }
             await saveSession(profile.id);
+            await setHasSeenOnboarding();
             return profile;
           }
         } catch (_) {

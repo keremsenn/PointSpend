@@ -18,6 +18,7 @@ class UserProfile {
     this.perfectDaysCount = 0,
     this.lastActiveDate,
     this.photoUrl,
+    this.hasSeenOnboarding = true,
   });
 
   final String id;
@@ -35,6 +36,7 @@ class UserProfile {
   final int perfectDaysCount;
   final DateTime? lastActiveDate;
   final String? photoUrl;
+  final bool hasSeenOnboarding;
 
   int get displayStreak {
     if (lastActiveDate == null) return 0;
@@ -73,6 +75,7 @@ class UserProfile {
     int? perfectDaysCount,
     DateTime? lastActiveDate,
     String? photoUrl,
+    bool? hasSeenOnboarding,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -90,6 +93,7 @@ class UserProfile {
       perfectDaysCount: perfectDaysCount ?? this.perfectDaysCount,
       lastActiveDate: lastActiveDate ?? this.lastActiveDate,
       photoUrl: photoUrl ?? this.photoUrl,
+      hasSeenOnboarding: hasSeenOnboarding ?? this.hasSeenOnboarding,
     );
   }
 
@@ -110,6 +114,7 @@ class UserProfile {
       'perfectDaysCount': perfectDaysCount,
       'lastActiveDate': lastActiveDate?.toIso8601String(),
       'photoUrl': photoUrl,
+      'hasSeenOnboarding': hasSeenOnboarding,
     };
   }
 
@@ -174,6 +179,7 @@ class UserProfile {
           ? DateTime.tryParse(map['lastActiveDate'].toString())
           : null,
       photoUrl: map['photoUrl'] as String?,
+      hasSeenOnboarding: map['hasSeenOnboarding'] as bool? ?? true,
     );
   }
 }

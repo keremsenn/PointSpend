@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  final Function(String userId) onLoginSuccess;
+  final void Function(String userId, {bool isNewUser}) onLoginSuccess;
 
   const LoginScreen({super.key, required this.onLoginSuccess});
 
@@ -44,14 +45,14 @@ class _LoginScreenState extends State<LoginScreen> {
           _emailController.text,
           _passwordController.text,
         );
-        widget.onLoginSuccess(profile.id);
+        widget.onLoginSuccess(profile.id, isNewUser: false);
       } else {
         final profile = await _authService.registerWithEmail(
           _nameController.text,
           _emailController.text,
           _passwordController.text,
         );
-        widget.onLoginSuccess(profile.id);
+        widget.onLoginSuccess(profile.id, isNewUser: !profile.hasSeenOnboarding);
       }
     } catch (e) {
       if (mounted) {
@@ -209,6 +210,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         if (!_isLoginTab) ...[
                           TextFormField(
                             controller: _nameController,
+                            maxLength: 40,
+                            inputFormatters: [LengthLimitingTextInputFormatter(40)],
+                            buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                             style: TextStyle(color: textColor),
                             decoration: InputDecoration(
                               labelText: 'Ad Soyad',
@@ -216,13 +220,21 @@ class _LoginScreenState extends State<LoginScreen> {
                               prefixIcon: const Icon(Icons.person_outline_rounded),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                             ),
-                            validator: (val) => val == null || val.trim().isEmpty ? 'Adınızı giriniz' : null,
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) return 'Adınızı giriniz';
+                              if (val.trim().length < 2) return 'Ad soyad en az 2 karakter olmalıdır';
+                              if (val.trim().length > 40) return 'Ad soyad en fazla 40 karakter olabilir';
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 14),
                         ],
 
                         TextFormField(
                           controller: _emailController,
+                          maxLength: 60,
+                          inputFormatters: [LengthLimitingTextInputFormatter(60)],
+                          buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                           keyboardType: TextInputType.emailAddress,
                           style: TextStyle(color: textColor),
                           decoration: InputDecoration(
@@ -231,12 +243,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             prefixIcon: const Icon(Icons.email_outlined),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                           ),
-                          validator: (val) => val == null || !val.contains('@') ? 'Geçerli e-posta giriniz' : null,
+                          validator: (val) {
+                            if (val == null || !val.contains('@')) return 'Geçerli e-posta giriniz';
+                            if (val.trim().length > 60) return 'E-posta en fazla 60 karakter olabilir';
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 14),
 
                         TextFormField(
                           controller: _passwordController,
+                          maxLength: 32,
+                          inputFormatters: [LengthLimitingTextInputFormatter(32)],
+                          buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                           obscureText: _obscurePassword,
                           style: TextStyle(color: textColor),
                           decoration: InputDecoration(
@@ -252,13 +271,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                           ),
-                          validator: (val) => val == null || val.length < 6 ? 'En az 6 karakter giriniz' : null,
+                          validator: (val) {
+                            if (val == null || val.length < 6) return 'En az 6 karakter giriniz';
+                            if (val.length > 32) return 'Şifre en fazla 32 karakter olabilir';
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 14),
 
                         if (!_isLoginTab) ...[
                           TextFormField(
                             controller: _confirmPasswordController,
+                            maxLength: 32,
+                            inputFormatters: [LengthLimitingTextInputFormatter(32)],
+                            buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                             obscureText: _obscureConfirmPassword,
                             style: TextStyle(color: textColor),
                             decoration: InputDecoration(
